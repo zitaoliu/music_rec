@@ -16,23 +16,15 @@ from bs4 import BeautifulSoup
 ###
 main_file = "ips.html"
 test_file = "ip_test_download.html"
-good_ip_file = "good_ip_file.txt"
+
+good_ip_file_new = "good_ip_file_new.txt"
+good_ip_file_old = "good_ip_file.txt"
 
 subprocess.call(["wget", "-q", "-O", main_file, "https://free-proxy-list.net/"])
 num_cols = 8
 
 
-###
-# read existing good ips
-###
-ip_dict = set()
-with open(good_ip_file) as f:
-	for line in f:
-		ip_dict.add(line)
-
-print("Have existing good ips: %d \n" %(len(ip_dict)))
-
-good_ips_file = open(good_ip_file, "a")
+good_ips_file = open(good_ip_file_new, "w")
 
 with open(main_file) as f:
 	s = BeautifulSoup(f.read().replace('\n', ''), "html.parser")
@@ -54,7 +46,7 @@ with open(main_file) as f:
 			proxy_addr = "http_proxy=" + ip_addr + ":" + port_num
 
 			# if this is the new ip
-			if proxy_addr not in ip_dict:
+			if proxy_addr not in ip_set:
 
 				# test if the ip is working
 				return_code = subprocess.call(["wget", "-q", "-T", "3", "-O", test_file, "-e", proxy_addr, "http://music.163.com/playlist?id=574119384"])
@@ -69,3 +61,6 @@ with open(main_file) as f:
 
 
 good_ips_file.close()
+
+subprocess.call(["cat", good_ip_file_old, ">>", "ip.log"])
+subprocess.call(["cp", good_ip_file_new, good_ip_file_old])

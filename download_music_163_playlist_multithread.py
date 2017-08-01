@@ -10,7 +10,7 @@ import os.path
 import re
 import subprocess
 
-
+from multiprocessing import Pool
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from random import randint
@@ -18,11 +18,12 @@ from random import randint
 
 music_category_list = ['hot', 'new']
 
-def download_page(url, file_name):
+def download_page(url, file_name, ip_set):
 	print("[Downloading " + url)
 	subprocess.call(["wget", "-q", "-O", file_name, url])
 
-def download_category(music_cat, playlist_cat, offset, file_name):
+
+def download_category(music_cat, playlist_cat, offset, file_name, ip_set):
 	url = "http://music.163.com/discover/playlist/?order=" + music_cat + "&cat=" + playlist_cat + "&limit=35&offset=" + str(offset)
 	print("[Downloading Category] " + url)
 
@@ -39,30 +40,24 @@ def download_playlist(playlist_id, file_name):
 	if os.path.exists(file_name):
 		return
 
-	# random sleep
-	# rand_num = randint(2, 20)
-	# print('\t\t\t random sleep: %d seconds' %(rand_num))
-	# subprocess.call(["sleep", str(rand_num)])
-	
-	# http://118.178.227.171:80
-	subprocess.call(["wget", "-q", "-O", file_name, "-e", "http_proxy=144.217.158.163:3128", url])
-	# subprocess.call(["wget", "-q", "-O", file_name, url])
+	is_ip_good = False
+	while len(ip_set) > 0 and ~is_ip_good:
+		rand_num = randint(0, len(ip_set))
+		ip_proxy = ip_array[rand_num]
 
+		cmd_array = ["wget", "-q", "-T", "5", "-t", "1", "-O", file_name, "-e", ip_proxy, url]
+		# print("\t\t" + " ".join(cmd_array))
+		return_code = subprocess.call(cmd_array)
 
-def download_song(song_id, file_name):
-	url = "http://music.163.com/song?id=" + str(song_id)
-	print("\t\t[Downloading Song] " + url)
+		if return_code == 0:
+			is_ip_good = True
+		else:
+			ip_set.remove(ip_proxy)
+			print("\t\t" + "[Bad IP removed] " + ip_proxy)
 
-	if os.path.exists(file_name):
-		return
-	
-	driver = webdriver.PhantomJS()
-	driver.get(url)
-	driver.switch_to.frame(driver.find_element_by_name("contentFrame"))
-	html = driver.page_source
-	
-	with open(file_name, "w") as file:
-		file.write(html)
+		if len(ip_set) == 0:
+			print("No good ip any more")
+			quit()
 
 def find_max_page_num(file_name):
 	if not os.path.exists(file_name):
@@ -72,7 +67,13 @@ def find_max_page_num(file_name):
 			s = BeautifulSoup(f.read().replace('\n', ''), "html.parser")
 			val = int(s.find('a', {'class':'zbtn znxt'}).previousSibling.string)
 			subprocess.call(["rm", "-rf", file_name])
-		return val	
+		return val
+
+def remove_ws(str):
+	if str == None:
+		return ""
+	else:
+		return ''.join(str.split())
 
 def like_str_to_num(str):
 	if str == None:
@@ -86,13 +87,22 @@ def extract_num(str):
 	else:
 		return re.findall('\d+', str)[0]
 
-
+###
+# read existing good ips
+###
+good_ip_file = "good_ip_file.txt"
+ip_set = set()
+ip_array = []
+with open(good_ip_file) as f:
+	for line in f:
+		ip_set.add(line)
+		ip_array.append(line)
 
 ###
 # download song category names 
 ###
 main_file = "main.html"
-download_category("hot", "%E5%85%A8%E9%83%A8", 0, main_file)
+download_category("hot", "%E5%85%A8%E9%83%A8", 0, main_file, ip_set)
 
 song_cat_list = []
 song_cat_encoding_list = []
@@ -109,20 +119,20 @@ with open(main_file) as f:
 ###
 # download all playlist
 ###
+#
+# pool = Pool(processes=4)
+
 for music_cat in music_category_list:
 	
 	for encoding_idx, encoding_val in enumerate(song_cat_encoding_list):
-		if encoding_idx < 60:
-			continue
 			
 		dir_name = music_cat + "/" + song_cat_list[encoding_idx]
-		# subprocess.call(["rm", "-rf", dir_name])
 		subprocess.call(["mkdir", "-p", dir_name])
 
 		# download webpage to see the max offset
 		tmp_file = dir_name + "/tmp.html"
 		tmp_url = "http://music.163.com/discover/playlist/?cat=" + encoding_val + "&order=" + music_cat
-		download_page(tmp_url, tmp_file)
+		download_page(tmp_url, tmp_file, ip_set)
 		num_page = find_max_page_num(tmp_file)
 		playlist_offset_list = np.arange(num_page+1) * 35
 
@@ -131,7 +141,7 @@ for music_cat in music_category_list:
 			print("[" + music_cat + "] [" + song_cat_list[encoding_idx] + ", " + str(encoding_idx) + "/" + str(len(song_cat_encoding_list)) + "], offset = " + str(offset))
 
 			file_name = dir_name + "/" + str(offset) + ".html"
-			download_category(music_cat, encoding_val, offset, file_name)
+			download_category(music_cat, encoding_val, offset, file_name, ip_set)
 
 			playlist_per_page = []
 			with open(file_name) as f:
