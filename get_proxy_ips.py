@@ -45,17 +45,14 @@ with open(main_file) as f:
 		if count % num_cols == 2:
 			proxy_addr = "http_proxy=" + ip_addr + ":" + port_num
 
-			# if this is the new ip
-			if proxy_addr not in ip_set:
-
-				# test if the ip is working
-				return_code = subprocess.call(["wget", "-q", "-T", "3", "-O", test_file, "-e", proxy_addr, "http://music.163.com/playlist?id=574119384"])
+			# test if the ip is working
+			return_code = subprocess.call(["wget", "-q", "-T", "3", "-O", test_file, "-e", proxy_addr, "http://music.163.com/playlist?id=574119384"])
 	
-				if return_code == 0:
-					print("Good: " + proxy_addr)
-					good_ips_file.write(proxy_addr + "\n")
-				else:
-					print("Bad: " + proxy_addr)
+			if return_code == 0:
+				print("Good: " + proxy_addr)
+				good_ips_file.write(proxy_addr + "\n")
+			else:
+				print("Bad: " + proxy_addr)
 			
 		count = count + 1
 

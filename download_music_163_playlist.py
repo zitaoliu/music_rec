@@ -44,9 +44,7 @@ def download_playlist(playlist_id, file_name):
 	# print('\t\t\t random sleep: %d seconds' %(rand_num))
 	# subprocess.call(["sleep", str(rand_num)])
 	
-	# http://118.178.227.171:80
 	subprocess.call(["wget", "-q", "-O", file_name, "-e", "http_proxy=144.217.158.163:3128", url])
-	# subprocess.call(["wget", "-q", "-O", file_name, url])
 
 
 def download_song(song_id, file_name):
@@ -70,9 +68,12 @@ def find_max_page_num(file_name):
 	else:
 		with open(file_name) as f:
 			s = BeautifulSoup(f.read().replace('\n', ''), "html.parser")
-			val = int(s.find('a', {'class':'zbtn znxt'}).previousSibling.string)
+			try:
+				val = int(s.find('a', {'class':'zbtn znxt'}).previousSibling.string)
+			except:
+				return 0
 			subprocess.call(["rm", "-rf", file_name])
-		return val	
+		return val
 
 def like_str_to_num(str):
 	if str == None:
@@ -116,7 +117,6 @@ for music_cat in music_category_list:
 			continue
 			
 		dir_name = music_cat + "/" + song_cat_list[encoding_idx]
-		# subprocess.call(["rm", "-rf", dir_name])
 		subprocess.call(["mkdir", "-p", dir_name])
 
 		# download webpage to see the max offset

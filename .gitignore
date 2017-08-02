@@ -1,2 +1,5 @@
 /hot
+/new
 *.html
+*.log
+*.DS_Store
